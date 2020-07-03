@@ -198,20 +198,20 @@ class Info extends Component {
         width: 100,
         render: (text, record, index) => {
           let options = [];
-          console.log(rulesArr.filterRules[index].hitParamType)
           switch(rulesArr.filterRules[index].hitParamType){
             case 'STRING': options = ['EQ', 'NEQ', 'REGEXP', 'INCLUDE', 'EXCLUDE']; break
             case 'BOOLEAN': options = ['TRUE', 'FALSE']; break
             case 'NUMBER': options = ['GT', 'GE', 'LT', 'LE', 'EQ', 'NEQ', 'INCLUDE', 'EXCLUDE']; break
           }
-          // let triggerConditionCode;
-          // // let triggerConditionCode = rulesDataCopy.filterRules[index].triggerConditionCode === '' ? options[0] : 
-          // if(rulesArr.filterRules[index].triggerConditionCode === '') {
-          //   triggerConditionCode = rulesArr.filterRules[index].triggerConditionCode = options[0];
-          // }else{
-          //   triggerConditionCode = rulesArr.filterRules[index].triggerConditionCode;
-          // }
-          
+
+          if(record.hitParamType != rulesArr.filterRules[index].hitParamType) {
+            rulesArr.filterRules[index].triggerConditionCode = options[0];
+            // this.setState({rulesArr: {...rulesArr}})
+            // console.log('aaaa')
+          }else {
+            rulesArr.filterRules[index].triggerConditionCode = record.triggerConditionCode
+          }
+
           return isEdit ?
           (
             <Select size="small" 
