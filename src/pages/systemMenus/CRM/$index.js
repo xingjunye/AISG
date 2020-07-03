@@ -1,10 +1,13 @@
 import React from 'react';
+// import { withRouter } from "umi";
 import { Tag } from 'antd';
 import { connect } from 'dva';
 import loadable from '@loadable/component';
 import styles from './index.less';
 
-const crm = props => {
+
+
+const route = props => {
   const { dispatch, systemMenus: { arr }, match: { params: { name }, url }} = props;
   const closeTag = json => {
     dispatch({
@@ -35,4 +38,4 @@ const crm = props => {
   </div>);
 }
 
-export default connect( ({ systemMenus }) => ({ systemMenus }) )(crm);
+export default connect( ({ systemMenus }) => ({ systemMenus }) )(route);

@@ -18,6 +18,13 @@ class SafetyControl extends Component {
       businessName: '', // 查询用 业务模块名
       businessCode: '', // 查询用 业务编码
       availability: '', // 查询用 状态
+      form: { //新增对应的表单
+        filterName: '',
+        createTime: '',
+        businessName: '',
+        businessCode: '',
+        availability: '0'
+      },
       // curRowDetail: null, // 保存当前行数据
       size: 10,  // 分页默认显示条数
       page: 1,  // 当前页码
@@ -45,13 +52,16 @@ class SafetyControl extends Component {
   }
 
   // 显示弹窗
-  showMedal = () => {
-    // this.setState({
-    //   visible: true,
-    // });
+  showMedal = (json) => {
+    this.setState({
+      form: {
+        ...json
+      },
+      visible: true,
+    });
   }
 
-  // 显示弹窗
+  // 隐藏弹窗
   hideMedal = () => {
     this.setState({
       visible: false,
@@ -64,12 +74,21 @@ class SafetyControl extends Component {
     return trActive === index ? styles.rowClassName : '';
   }
   
-  showConfirm = () => {
+  showConfirm = (json) => {
+    const { dispatch } = this.props;
     Modal.confirm({
       title: '确定要删除吗?',
       content: '我在问你一遍你真的确认吗？',
       onOk() {
-        console.log('OK');
+        dispatch({
+          type: 'safetyControl/delete',
+          payload: {
+            id: json.filterId
+          },
+          callback() {
+            message.success('删除成功!')
+          }
+        })
       },
       onCancel() {
         console.log('Cancel');
@@ -99,10 +118,41 @@ class SafetyControl extends Component {
     this.setState({ page: c }, () => this.search());
   }
 
+  //新增拦截器
+  addFilter = () => {
+    const { form } = this.state;
+    const { dispatch } = this.props;
+    form.createTime = moment().format('YYYY-MM-DD HH:mm:ss');
+    const data = {
+      "filterId": '',
+      "authId": '',
+      "userId": '',
+      "updateTime": "",
+      "filterRules": [],
+      ...form
+    }
+
+    let This = this;
+    dispatch({
+      type: 'safetyControl/addFilter',
+      payload: {
+        data
+      },
+      callback(code){
+        This.setState({visible: false});
+        if(code == 200) {
+          message.success('拦截器添加成功！');
+        }else{
+          message.error('拦截器添加失败！');
+        }
+      }
+    });
+  }
+
   render() {
     const { safetyControl } = this.props;
     // const { getFieldDecorator } = this.props.form;
-    const { visible, size, page, filterName} = this.state;
+    const { visible, size, page, filterName, form } = this.state;
     const columns = [
       {
         title: '序号',
@@ -160,7 +210,7 @@ class SafetyControl extends Component {
             </Tooltip>
             &nbsp;&nbsp;&nbsp;&nbsp;
             <Tooltip title='删除' >
-              <Icon type='delete' style={{color: '#f50'}} onClick={ ()=>this.showConfirm(text)}></Icon>
+              <Icon type='delete' style={{color: '#f50'}} onClick={ ()=>this.showConfirm(record)}></Icon>
             </Tooltip>
           </div>  
         )
@@ -179,17 +229,52 @@ class SafetyControl extends Component {
       onShowSizeChange: (c, pg) => this.changePageSize(c, pg),
       onChange: c => this.changePage(c),
     }
-    
+
     return (
       <div style={{padding: '10px'}}>
         <Modal
-          title='详情'
+          title='拦截器添加'
           visible={visible}
-          width='70%'
+          width='30%'
           onCancel={this.hideMedal}
-          footer={false}
+          onOk={this.addFilter}
         >
-          <Info></Info>
+          {/* <Info></Info> */}
+          <Row gutter={[24, 24]}>
+            <Col span={6}>
+              拦截器名称：
+            </Col>
+            <Col span={18}>
+              <Input placeholder="请填写拦截器名称" value={form.filterName} onChange={ e => this.setState({form: { ...form,filterName: e.target.value}}) }></Input>
+            </Col>
+          </Row>
+          <Row gutter={[24, 0]}>
+            <Col span={6}>
+              业务编码：
+            </Col>
+            <Col span={18}>
+              <Input placeholder="请填写业务编码" value={form.businessName} onChange={ e => this.setState({form: { ...form,businessName: e.target.value}})} ></Input>
+            </Col>
+          </Row>
+          <Row gutter={[24, 24]}>
+            <Col span={6}>
+              业务模块名：
+            </Col>
+            <Col span={18}>
+              <Input placeholder="请填写业务模块名" defaultValue={form.businessCode} onChange={ e => this.setState({form: { ...form,businessCode: e.target.value}})}></Input>
+            </Col>
+          </Row>
+          <Row gutter={[24, 0]}>
+            <Col span={6}>
+              状态：
+            </Col>
+            <Col span={18}>
+              <Select placeholder="请填写状态" value={`${form.availability}`} style={{width: "100%"}} onChange={ val => this.setState({form: { ...form,availability: val}})}>
+                <Select.Option value="0">可用</Select.Option>
+                <Select.Option value="1">不可用</Select.Option>
+              </Select>
+            </Col>
+          </Row>
         </Modal>
         <Row gutter={[16, 15]}>
           <Col span={6}>
@@ -222,9 +307,15 @@ class SafetyControl extends Component {
             </Select>
           </Col>
           <Col span={18} align="right">
-            <Button type='primary' onClick={this.search} icon="search">查询</Button>
+            <Button type='primary' onClick={() => this.search()} icon="search">查询</Button>
             &nbsp;&nbsp;&nbsp;&nbsp;
-            <Button type='primary' ghost icon="plus" onClick={ () => this.showMedal()}>新增</Button>
+            <Button type='primary' ghost icon="plus" onClick={ () => this.showMedal({ //新增对应的表单
+              filterName: '',
+              createTime: '',
+              businessName: '',
+              businessCode: '',
+              availability: '0'
+            })}>新增</Button>
           </Col>
         </Row>
         {/* <Row gutter={[16, 15]}>

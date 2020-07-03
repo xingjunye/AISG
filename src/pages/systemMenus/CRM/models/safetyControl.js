@@ -1,4 +1,14 @@
-import { search, update, remove, searchRules } from '@/services/systemMenus/safetyControl'
+import { search, update, remove, searchRules, delRule } from '@/services/systemMenus/safetyControl'
+
+const searchJson = {
+  availability: "",
+  businessCode: "",
+  businessName: "",
+  createTime: "",
+  filterName: "",
+  page: 1,
+  size: 10
+}
 
 export default {
   namespace: 'safetyControl',
@@ -64,6 +74,32 @@ export default {
       }
     },
 
+    //新增规则
+    add (state) {
+      const json = {
+        filterId: state.rulesDataCopy.filterId,
+        filterUnit: "",
+        hitParamName: "",
+        hitParamType: "STRING",
+        hitParamValue: "",
+        ruleId: '',
+        ruleName: "",
+        status: 1,
+        treasuryCheck: 0,
+        triggerConditionCode: "EQ",
+      };
+      state.rulesDataCopy.filterRules.push(json);
+      state.rulesData.filterRules.push(json);
+      return {...state}
+    },
+
+    //重置
+    reset(state) {
+      state.rulesDataCopy = JSON.parse(JSON.stringify(state.rulesData));
+      console.log('1111')
+      return {...state}
+    },
+
     setCopyData(state, { payload: { json } }) {
       state.rulesDataCopy = {
         ... state.rulesDataCopy,
@@ -108,8 +144,8 @@ export default {
       }
     },
 
-    saveRules(state, ) {
-      console.log(state.rulesDataCopy);
+    saveRules(state) {
+      state.rulesData = JSON.parse(JSON.stringify(state.rulesDataCopy));
       return{ ...state }
     }
   },
@@ -131,12 +167,71 @@ export default {
       });
     },
 
+    //查询规则
     *searchRules({ payload: { filterId }}, { call, put }) {
       const res = yield call(searchRules, filterId);
       yield put({
         type: 'addTabs',
         res: res.data
       });
+    },
+
+    *addFilter({ payload: { data }, callback}, { call, put }) {
+      const res = yield call(update, data);
+      if(res.rtnCode == 200){
+        yield put({
+          type: 'search',
+          payload: {
+            ...searchJson
+          }
+        });
+
+        if(callback) callback(res.rtnCode);
+      };
+    },
+
+    //修改
+    *update({ callback }, { select, call, put }) {
+      const data = yield select(state => state.safetyControl.rulesDataCopy);
+      console.log(data);
+      const res = yield call(update, data);
+      if(res.rtnCode == 200) {
+        yield put({
+          type: 'saveRules',
+          res
+        });
+        // message.success('修改成功！');
+        if(callback) callback()
+      }
+    },
+
+    //删除拦截器
+    *delete({ payload, callback }, { select, call, put }) {
+      const res = yield call(remove, payload);
+      if(res.rtnCode == 200) {
+        yield put({
+          type: 'search',
+          payload: {
+            ...searchJson
+          }
+        });
+        // message.success('修改成功！');
+        if(callback) callback()
+      }
+    },
+
+    //delRule 删除规则
+    *delRule({ payload, callback }, {call, put} ) {
+      const res = yield call(delRule, {id: payload.ruleId});
+      if(res.rtnCode == 200){
+        yield put({
+          type: 'searchRules',
+          payload: {
+            filterId: payload.filterId
+          }
+        });
+        if(callback) callback(res.rtnCode);
+      };
     }
   }
 }

@@ -2,7 +2,6 @@ import React, { Component } from 'react'
 import { Row, Col, Input, Icon, Button, DatePicker, Badge, Switch, Table, Descriptions, Tooltip, Modal, Form, Popconfirm, message, Spin, Select } from 'antd';
 import { connect } from 'dva';
 import moment from 'moment';
-import router from 'umi/router';
 import styles from '../index.less';
 
 const formItemLayout = {
@@ -18,16 +17,23 @@ const formItemLayout = {
 
 class Info extends Component {
 
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
     this.state = {
       visible: false,
       madelTitle: '新增',
       // curRowDetail: null, // 保存当前行数据
       pageSize: 10,  // 分页默认显示条数
       current: 1,  // 当前页码
-      isEdit: false
+      isEdit: false,
+      rulesArr: JSON.parse(JSON.stringify(props.safetyControl.rulesData))
     }
+  }
+
+  componentWillReceiveProps(nextProps) {
+    this.setState({
+      rulesArr: JSON.parse(JSON.stringify(nextProps.safetyControl.rulesData))
+    });
   }
 
   // 返回主界面
@@ -41,22 +47,95 @@ class Info extends Component {
     });
   }
 
-  changeValue = isEdit => {
+  //保存
+  save = () => {
     const { dispatch } = this.props;
-    if(!isEdit) {
-      dispatch({
-        type: 'safetyControl/saveRules'
-      });
-    }
+    dispatch({
+      type: 'safetyControl/update',
+      callback() {
+        message.success('修改成功！')
+      }
+    });
+    this.setState({isEdit: false});
+  }
+
+  //修改
+  update = isEdit => {
+    
+  }
+
+  //添加
+  add = () => {
+    const { dispatch } = this.props;
+    dispatch({
+      type: 'safetyControl/add'
+    });
+  }
+
+  //编辑
+  edit = isEdit => {
     this.setState({isEdit});
   }
 
-  update = params => {
+  //重置
+  reset = () => {
+    // console.log('重置开始')
+    const { dispatch } = this.props;
+    dispatch({
+      type: 'safetyControl/reset'
+    });
+  }
 
+  //取消
+  closeEdit = () => {
+    const { safetyControl: { rulesData, rulesDataCopy } } = this.props;
+    const This = this;
+    if(JSON.stringify(rulesData) != JSON.stringify(rulesDataCopy)){
+      Modal.confirm({
+        title: '您有数据尚未保存，是否要保存数据？',
+        // content: '您有数据？',
+        onOk() {
+          This.save();
+          This.edit(false);
+        },
+        onCancel() {
+          This.reset();
+          This.edit(false);
+        },
+      });
+    }else {
+      this.edit(false);
+    }
+  }
+
+  //通用修改input值的方法
+  changeValue = (val, i, name) => {
+    const { rulesArr } = this.state;
+    rulesArr.filterRules[i][name] = val;
+    this.setState({rulesArr: { ...rulesArr }});
+  }
+
+  //删除
+  delRule = obj => {
+    const This = this;
+    if(obj.ruleId != '') {
+      const { dispatch } = this.props;
+      dispatch({
+        type: 'safetyControl/delRule',
+        payload: {
+          ...obj
+        },
+        callback() {
+          message.success('删除成功！')
+        }
+      });
+    }else{
+
+    }
   }
 
   render() {
-    const { pageSize, current, isEdit } = this.state;
+    const { pageSize, current, isEdit, rulesArr } = this.state;
     const { safetyControl: { rulesData: data, rulesDataCopy, spinning } } = this.props;
     // key: i,
     //     ruleName: `我是规则${i}`,
@@ -70,23 +149,26 @@ class Info extends Component {
       {
         title: '规则名称',
         dataIndex: 'ruleName',
-        render: (text, record, index) => 
-          isEdit ? (
-            <Input size='small' defaultValue={text} onChange={ e => {
-              rulesDataCopy.filterRules[index].ruleName = e.target.value;
-            }}/>
+        render: (text, record, index) => {
+          return isEdit ? (
+            <Input 
+              size='small' 
+              value={rulesArr.filterRules[index].ruleName} 
+              onChange={ e => this.changeValue(e.target.value, index, 'ruleName')}/>
           ) : (
             text
           )
+        } 
       },
       {
         title: '过滤单元',
         dataIndex: 'filterUnit',
         render: (text, record, index) => 
           isEdit ? (
-            <Input size='small' defaultValue={text} onChange={ e => {
-              rulesDataCopy.filterRules[index].filterUnit = e.target.value;
-            }}/>
+            <Input 
+              size='small'
+              value={rulesArr.filterRules[index].filterUnit}
+              onChange={ e => this.changeValue(e.target.value, index, 'filterUnit')}/>
           ) : (
             text
           )
@@ -97,11 +179,11 @@ class Info extends Component {
         width: 100,
         render: (text, record, index) => 
           isEdit ?  (
-            <Select size="small" defaultValue={text} style={{width: '100%'}} onChange={ value => {
-              let val = record.hitParamType === value ? record.triggerConditionCode : '';
-              rulesDataCopy.filterRules[index].triggerConditionCode = val;
-              rulesDataCopy.filterRules[index].hitParamType = value;
-            }}>
+            <Select 
+              size="small" 
+              value={rulesArr.filterRules[index].hitParamType}
+              style={{width: '100%'}} 
+              onChange={ value => this.changeValue(value, index, 'hitParamType')} >
               <Select.Option value="STRING">STRING</Select.Option>
               <Select.Option value="BOOLEAN">BOOLEAN</Select.Option>
               <Select.Option value="NUMBER">NUMBER</Select.Option>
@@ -116,17 +198,27 @@ class Info extends Component {
         width: 100,
         render: (text, record, index) => {
           let options = [];
-          switch(rulesDataCopy.filterRules[index].hitParamType){
+          console.log(rulesArr.filterRules[index].hitParamType)
+          switch(rulesArr.filterRules[index].hitParamType){
             case 'STRING': options = ['EQ', 'NEQ', 'REGEXP', 'INCLUDE', 'EXCLUDE']; break
             case 'BOOLEAN': options = ['TRUE', 'FALSE']; break
             case 'NUMBER': options = ['GT', 'GE', 'LT', 'LE', 'EQ', 'NEQ', 'INCLUDE', 'EXCLUDE']; break
           }
-          let triggerConditionCode = rulesDataCopy.filterRules[index].triggerConditionCode === '' ? options[0] : rulesDataCopy.filterRules[index].triggerConditionCode;
+          // let triggerConditionCode;
+          // // let triggerConditionCode = rulesDataCopy.filterRules[index].triggerConditionCode === '' ? options[0] : 
+          // if(rulesArr.filterRules[index].triggerConditionCode === '') {
+          //   triggerConditionCode = rulesArr.filterRules[index].triggerConditionCode = options[0];
+          // }else{
+          //   triggerConditionCode = rulesArr.filterRules[index].triggerConditionCode;
+          // }
+          
           return isEdit ?
           (
-            <Select size="small" value={triggerConditionCode} style={{width: '100%'}} placeholder="请选择激活条件" onChange={ value => {
-              rulesDataCopy.filterRules[index].triggerConditionCode = value;
-            }}>
+            <Select size="small" 
+              value={rulesArr.filterRules[index].triggerConditionCode} 
+              style={{width: '100%'}} 
+              placeholder="请选择激活条件" 
+              onChange={ value => this.changeValue(value, index, 'triggerConditionCode')} >
               {options.map(item => (
                 <Select.Option key={item} value={item}>{item}</Select.Option>
               ))}
@@ -141,9 +233,10 @@ class Info extends Component {
         dataIndex: 'hitParamName',
         render: (text, record, index) => 
           isEdit ? (
-              <Input size='small' defaultValue={text} onChange={ e => {
-                rulesDataCopy.filterRules[index].hitParamName = e.target.value;
-              }}/>
+              <Input 
+                size='small' 
+                value={rulesArr.filterRules[index].hitParamName} 
+                onChange={ e => this.changeValue(e.target.value, index, 'hitParamName')}/>
           ) : (
             text
           )
@@ -154,9 +247,10 @@ class Info extends Component {
         width: 100,
         render: (text, record, index) => 
           isEdit ? (
-            <Input size='small' defaultValue={text} onChange={ e => {
-              rulesDataCopy.filterRules[index].hitParamValue = e.target.value;
-            }} />
+            <Input 
+              size='small' 
+              value={rulesArr.filterRules[index].hitParamValue}
+              onChange={ e => this.changeValue(e.target.value, index, 'hitParamValue')}/>
           ) : (
             text
           )
@@ -167,14 +261,15 @@ class Info extends Component {
         width: 100,
         render: (text, record, index) =>
         isEdit ?  (
-          <Select size="small" defaultValue={`${text}`} style={{width: '100%'}} onChange={ value => {
-            rulesDataCopy.filterRules[index].status = value;
-          }}>
+          <Select size="small"
+            value={`${rulesArr.filterRules[index].status}`}
+            style={{width: '100%'}} 
+            onChange={ value => this.changeValue(value, index, 'status')}>
             <Select.Option value="1">可用</Select.Option>
             <Select.Option value="0">不可用</Select.Option>
           </Select>
         ) : (
-          text === '1' ? <Badge status="success" text="可用" /> : <Badge status="warning" text="不可用" /> 
+          text === 1 ? <Badge status="success" text="可用" /> : <Badge status="warning" text="不可用" /> 
         ) 
       },
       {
@@ -187,23 +282,29 @@ class Info extends Component {
           disabled={!isEdit} 
           size="small" 
           unCheckedChildren="关"
-          onChange={ value => rulesDataCopy.filterRules[index].status = value ? '1': '0'}
+          onChange={ value => this.changeValue(value = value ? 1: 0, index, 'treasuryCheck')}
          ></Switch>)
       },
       {
         title: '操作',
         key: 'operation',
-        fixed: 'right',
         align: 'center',
         width: 60,
-        render: (text) => (
+        render: (text, record) => (
           <div>
-            <Icon style={{color: 'red'}} type='delete' onClick={ ()=>this.showConfirm(text)}></Icon>
+            <Popconfirm
+              title="您确定要删除吗?"
+              onConfirm={()=>this.delRule(record)}
+              // onCancel={cancel}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Icon style={{color: 'red', cursor: 'pointer'}} type='delete'></Icon>
+            </Popconfirm>
           </div>
         )
       },
     ];
-
     const bage = (data.availability !== '1' ? <Badge status="success" text="可用" /> : <Badge status="warning" text="不可用" />);
     return (
       <div style={{padding: '16px'}}>
@@ -257,25 +358,31 @@ class Info extends Component {
                   {isEdit ? 
                     <>
                       <Tooltip title="添加">
-                        <Button type='dashed' size='small' onClick={ () => this.changeValue(false)}>
+                        <Button type='dashed' size='small' onClick={ () => this.add(false)}>
                           <Icon type='plus' style={{color: '#1890ff'}} ></Icon>
                         </Button>
                       </Tooltip>
                       &nbsp;&nbsp;
                       <Tooltip title="重置">
-                        <Button type='dashed' size='small' shape="circle"  onClick={ () => this.changeValue(false)}>
+                        <Button type='dashed' size='small' shape="circle"  onClick={this.reset}>
                           <Icon type='reload' style={{color: '#1890ff'}} ></Icon>
                         </Button>
                       </Tooltip>
                       &nbsp;&nbsp;
                       <Tooltip title="保存">
-                        <Button type='dashed' size='small' onClick={ () => this.changeValue(false)}>
+                        <Button type='dashed' size='small' onClick={this.save}>
                           <Icon type='save' style={{color: '#1890ff'}} ></Icon>
+                        </Button>
+                      </Tooltip>
+                      &nbsp;&nbsp;
+                      <Tooltip title="取消">
+                        <Button type='dashed' size='small' onClick={this.closeEdit}>
+                          <Icon type='close' style={{color: '#108ee9'}} ></Icon>
                         </Button>
                       </Tooltip>
                     </> :
                     <Tooltip title="修改">
-                      <Icon type="edit" onClick={ () => this.changeValue(true)} style={{color: '#108ee9', cursor: 'pointer'}} />
+                      <Icon type="edit" onClick={() => this.edit(true)} style={{color: '#108ee9', cursor: 'pointer'}} />
                     </Tooltip>
                   }
                 </div>
@@ -304,7 +411,7 @@ class Info extends Component {
           <Col span={24}>
             <Spin tip="loading..." spinning={spinning}>
               <Table
-                rowKey={row => row.ruleId} 
+                rowKey={ (row, i) => i} 
                 scroll={{y: 'calc(100vh - 460px)'}} 
                 pagination={false} 
                 columns={columns} 

@@ -32,6 +32,10 @@ const noMatch = (
  */
 const menuDataRender = menuList =>
   menuList.map(item => {
+    // if(item.path.indexOf(':name') != -1){
+    //   item.path = item.path.replace(':name', 'menus');
+    //   item.key = item.key.replace(':name', 'menus');
+    // };
     const localItem = { ...item, children: item.children ? menuDataRender(item.children) : [] };
     return Authorized.check(item.authority, localItem, null);
   });
